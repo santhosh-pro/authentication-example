@@ -1,34 +1,26 @@
-import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext, ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import { Observable } from 'rxjs';
 import { Reflector } from '@nestjs/core';
-import { Roles } from './role.enum';
+import { AuthGuard } from '@nestjs/passport';
 
 @Injectable()
-export class RolesGuard implements CanActivate {
-  constructor(private reflector: Reflector) {}
+export class RolesGuard extends AuthGuard('jwt') {
+  constructor(private readonly reflector: Reflector) {
+    super();
+  }
 
-  async canActivate(context: ExecutionContext): Promise<boolean> {
-    const roles = this.reflector.getAllAndMerge<Roles[]>('roles', [
-      context.getClass(),
-      context.getHandler(),
-    ]) || [];
-
-    const isPublic = this.reflector.getAllAndOverride<boolean>('public', [
-      context.getHandler(),
-      context.getClass(),
-    ]);
-
-    if (!roles || isPublic) {
+  handleRequest(err, user, info: Error, context: ExecutionContext) {
+    const roles = this.reflector.get<string[]>('roles', context.getHandler());
+    if (!roles) {
       return true;
     }
-
-    let isAllowed = false;
-
-    roles.forEach(role => {
-      if ((context.switchToHttp().getRequest().request.user.roles && role) === role) {
-        isAllowed = true;
-      }
-    });
-
-    return isAllowed;
+    const hasRole = () => user.roles.some((role) => roles.includes(role));
+    if (!user) {
+      throw new UnauthorizedException();
+    }
+    if (!(user.roles && hasRole())) {
+      throw new ForbiddenException('Forbidden');
+    }
+    return user && user.roles && hasRole();
   }
 }

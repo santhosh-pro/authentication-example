@@ -7,6 +7,7 @@ import {RolesAllowed } from './roles.decorator';
 import { RolesGuard } from './roles.guard';
 
 @Controller()
+@UseGuards(RolesGuard)
 export class AppController {
   constructor(private readonly appService: AppService,
     private readonly authService: AuthService) { }
@@ -24,8 +25,7 @@ export class AppController {
 
   @Get('auth')
   @ApiBearerAuth()
-  @UseGuards(RolesGuard)
-  @RolesAllowed(Roles.User)
+  @RolesAllowed(Roles.Admin)
   allowAuth() {
    return 'works';
   }
